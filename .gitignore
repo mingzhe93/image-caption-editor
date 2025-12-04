@@ -1,0 +1,25 @@
+# Node / Next.js
+node_modules
+.next
+out
+
+# Env / logs
+.env
+.env.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist
+*.exe
+*.dmg
+*.AppImage
+*.blockmap
+
+# Temp
+api_temp_backup
