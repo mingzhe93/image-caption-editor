@@ -1,6 +1,6 @@
 # Image Caption Editor
 
-A desktop application to view and edit image captions.
+A desktop application to view and edit image captions. This is a hobby project built for fun (I got too triggered opening images and caption pairs manually) with help from AI tools.
 
 ## Features
 -   **Local File Access**: Reads images and text files directly from your local file system.
