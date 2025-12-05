@@ -310,7 +310,11 @@ export default function Home() {
         }}
       />
 
-      {status && <div className="text-sm text-gray-400 text-center h-5">{status}</div>}
+      {status && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-full backdrop-blur-sm shadow-lg z-50 animate-fade-in-out pointer-events-none">
+          {status}
+        </div>
+      )}
 
       {currentFile && (
         <div className="flex-1 flex gap-6 min-h-0">
@@ -340,48 +344,65 @@ export default function Home() {
               placeholder="Enter caption here..."
             />
             
-            <div className="flex justify-between items-center">
-              <div className="flex gap-2">
-                  <button
-                    onClick={() => handleNavigation('prev')}
-                    disabled={currentIndex === 0}
-                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50"
+            <div className="flex justify-between items-center bg-gray-800 p-3 rounded-xl border border-gray-700 shadow-sm mt-auto">
+              {/* Navigation Group */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleNavigation('prev')}
+                  disabled={currentIndex === 0}
+                  className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-gray-300"
+                  title="Previous (Ctrl+Left)"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                  </svg>
+                </button>
+
+                {/* Jump Control */}
+                <div className="flex items-center gap-2 bg-gray-900 px-3 py-1.5 rounded-lg border border-gray-700 focus-within:border-blue-500 transition-colors">
+                  <span className="text-gray-500 text-sm font-medium">#</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={files.length}
+                    value={jumpInput}
+                    onChange={(e) => setJumpInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleJump()}
+                    className="w-12 bg-transparent text-center font-mono text-sm focus:outline-none text-white appearance-none"
+                    placeholder={currentIndex + 1}
+                  />
+                  <span className="text-gray-600 text-sm select-none">/ {files.length}</span>
+                  <button 
+                    onClick={handleJump}
+                    className="ml-1 text-blue-500 hover:text-blue-400 text-xs font-bold uppercase tracking-wider px-1"
                   >
-                    Previous (Ctrl/Cmd+Left)
+                    Go
                   </button>
-                  <button
-                    onClick={() => handleNavigation('next')}
-                    disabled={currentIndex === files.length - 1}
-                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50"
-                  >
-                    Next (Ctrl/Cmd+Right)
-                  </button>
-               </div>
-               <div className="flex items-center gap-2">
-                 <input
-                   type="number"
-                   min={1}
-                   max={files.length || undefined}
-                   value={jumpInput}
-                   onChange={(e) => setJumpInput(e.target.value)}
-                   onKeyDown={(e) => e.key === 'Enter' && handleJump()}
-                   className="w-24 p-2 bg-gray-800 rounded border border-gray-700 focus:outline-none focus:border-blue-500"
-                   placeholder={files.length ? `1-${files.length}` : 'Jump to'}
-                 />
-                 <button
-                   onClick={handleJump}
-                   disabled={!files.length}
-                   className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50"
-                 >
-                   Go
-                 </button>
-               </div>
-               <button
+                </div>
+
+                <button
+                  onClick={() => handleNavigation('next')}
+                  disabled={currentIndex === files.length - 1}
+                  className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-gray-300"
+                  title="Next (Ctrl+Right)"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Save Button */}
+              <button
                 onClick={() => saveCaption(currentIndex, currentCaption)}
-                className="px-8 py-2 bg-green-600 hover:bg-green-700 rounded font-bold shadow-lg"
-               >
-                 Save (Ctrl/Cmd+S)
-               </button>
+                className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold shadow-lg shadow-blue-900/20 transition-all active:scale-95"
+                title="Save (Ctrl+S)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+                <span>Save</span>
+              </button>
             </div>
           </div>
         </div>

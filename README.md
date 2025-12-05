@@ -13,10 +13,21 @@ A desktop application to view and edit image captions. This is a hobby project b
     -   **Previous**: `Ctrl+Left` or `Cmd+Left`
 -   **Standalone Desktop App**: Runs as a native desktop application without requiring terminal commands.
 
+## Tech Stack
+
+This project is built using modern web technologies wrapped in Electron:
+
+-   **Framework**: [Next.js 15](https://nextjs.org/) (React) - For the UI and component architecture.
+-   **Desktop Wrapper**: [Electron](https://www.electronjs.org/) - To package the web app as a native desktop executable.
+-   **Styling**: [Tailwind CSS v4](https://tailwindcss.com/) - For rapid, modern styling.
+-   **Build Tool**: [electron-builder](https://www.electron.build/) - For creating cross-platform installers (DMG, EXE).
+-   **State Management**: React Hooks (`useState`, `useEffect`, `useCallback`).
+-   **File System**: Node.js `fs` module (via Electron IPC) for direct local file access.
+
 ## For Non-Technical Users - Quick Start
 
 **Download the pre-built application (once distributed):**
-1.  Download the `.dmg` file (Mac), `.exe` file (Windows), or `.AppImage` (Linux).
+1.  Download the `.dmg` file (Mac), `.exe` file (Windows).
 2.  Install/Run the application.
 3.  Use the "Browse" button to select your image folder.
 4.  Edit captions and they'll auto-save when you navigate.
