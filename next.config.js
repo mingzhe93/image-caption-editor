@@ -4,7 +4,8 @@ const isElectron = process.env.BUILD_TARGET === 'electron';
 const nextConfig = {
   ...(isElectron && {
     output: 'export',
-    assetPrefix: './',
+    // Use root-based asset URLs so they resolve under the custom app:// protocol (avoid relative ./_next paths breaking on nested routes)
+    trailingSlash: true,
   }),
   images: {
     unoptimized: true,
