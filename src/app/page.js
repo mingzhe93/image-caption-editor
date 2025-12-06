@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 function DirectoryPicker({ isOpen, onClose, onSelect }) {
@@ -278,27 +279,37 @@ export default function Home() {
   return (
     <main className="h-screen p-8 bg-gray-900 text-gray-100 flex flex-col gap-6 overflow-hidden">
       <header className="flex gap-4 items-center bg-gray-800 p-4 rounded-lg shadow-md">
-        <button
-          onClick={() => setIsPickerOpen(true)}
-          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded border border-gray-600"
-        >
-          📂 Browse
-        </button>
-        <input
-          type="text"
-          placeholder="Enter absolute directory path..."
-          className="flex-1 p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500"
-          value={directory}
-          onChange={(e) => setDirectory(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && loadFiles(directory)}
-        />
-        <button
-          onClick={() => loadFiles(directory)}
-          disabled={loading}
-          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded font-semibold disabled:opacity-50"
-        >
-          {loading ? 'Loading...' : 'Load'}
-        </button>
+        <div className="flex items-center gap-3 flex-[1_1_50%]">
+          <button
+            onClick={() => setIsPickerOpen(true)}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded border border-gray-600"
+          >
+            📂 Browse
+          </button>
+          <input
+            type="text"
+            placeholder="Enter absolute directory path..."
+            className="flex-1 p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500"
+            value={directory}
+            onChange={(e) => setDirectory(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && loadFiles(directory)}
+          />
+          <button
+            onClick={() => loadFiles(directory)}
+            disabled={loading}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded font-semibold disabled:opacity-50 whitespace-nowrap"
+          >
+            {loading ? 'Loading...' : 'Load'}
+          </button>
+        </div>
+        <div className="flex-[1_1_50%] flex justify-end">
+          <a
+            href="/captioner/"
+            className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold shadow-lg shadow-indigo-900/30 transition-colors"
+          >
+            Auto Captioning Service
+          </a>
+        </div>
       </header>
 
       <DirectoryPicker 

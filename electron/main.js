@@ -1,14 +1,29 @@
-const { app, BrowserWindow, ipcMain, dialog, protocol } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const { SidecarManager } = require('./sidecar');
 
 const isDev = process.env.NODE_ENV === 'development';
 
-// Allow using the custom protocol inside the renderer (images, fetch, etc.)
+// Ensure userData is stable across versions/releases so cached downloads persist.
+const stableUserData = path.join(app.getPath('appData'), 'Image Caption Editor');
+app.setPath('userData', stableUserData);
+
+// Allow using custom protocols inside the renderer (images, app assets, etc.)
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'local-resource',
+    privileges: {
+      secure: true,
+      standard: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true,
+    },
+  },
+  {
+    scheme: 'app',
     privileges: {
       secure: true,
       standard: true,
@@ -132,6 +147,23 @@ const registerIpcHandlers = () => {
   });
 };
 
+const registerCaptionerIpc = (sidecar) => {
+  ipcMain.handle('captioner:get-status', async () => sidecar.getStatus());
+  ipcMain.handle('captioner:start', async (_event, options) => sidecar.start(options));
+  ipcMain.handle('captioner:stop', async () => sidecar.stop());
+  ipcMain.handle('captioner:install-accel', async (_event, preferredBackend) =>
+    sidecar.installAcceleration(preferredBackend)
+  );
+  ipcMain.handle('captioner:install-backend', async (_event, preferredBackend) =>
+    sidecar.ensureBackendOnly(preferredBackend)
+  );
+  ipcMain.handle('captioner:download-model', async (_event, payload) =>
+    sidecar.downloadModel(payload?.modelUrl, payload?.mmprojUrl)
+  );
+  ipcMain.handle('captioner:clear-cache', async () => sidecar.clearCache());
+  ipcMain.handle('captioner:open-cache', async () => sidecar.openCacheFolder(shell));
+};
+
 const registerLocalResourceProtocol = () => {
   protocol.registerFileProtocol('local-resource', (request, callback) => {
     try {
@@ -159,6 +191,49 @@ const registerLocalResourceProtocol = () => {
   });
 };
 
+// Serve the exported Next.js app from a custom protocol so deep links map to the correct index.html
+const registerAppProtocol = () => {
+  if (isDev) return; // dev uses localhost
+  const distPath = path.normalize(path.join(__dirname, '..', 'out'));
+
+  protocol.registerFileProtocol('app', (request, callback) => {
+    try {
+      const url = new URL(request.url);
+      let relPath = decodeURIComponent(url.pathname || '/');
+
+      // Remove leading slash so path.join does not drop distPath on Windows
+      if (relPath.startsWith('/')) {
+        relPath = relPath.slice(1);
+      }
+
+      const resolvePath = (candidate) => {
+        const normalized = path.normalize(path.join(distPath, candidate));
+        if (!normalized.startsWith(distPath)) {
+          throw new Error('Invalid app path');
+        }
+        return normalized;
+      };
+
+      let targetPath = resolvePath(relPath);
+
+      // If the target is a directory or missing, fall back to index.html so nested routes still work
+      if (!fs.existsSync(targetPath) || fs.statSync(targetPath).isDirectory()) {
+        // Append index.html for folder-style paths
+        targetPath = resolvePath(path.join(relPath || '.', 'index.html'));
+        // If still missing (e.g., unexpected path), fall back to root index.html
+        if (!fs.existsSync(targetPath)) {
+          targetPath = resolvePath('index.html');
+        }
+      }
+
+      callback({ path: targetPath });
+    } catch (error) {
+      console.error('app protocol failed', error);
+      callback({ error });
+    }
+  });
+};
+
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
     width: 1400,
@@ -175,14 +250,19 @@ const createWindow = () => {
     mainWindow.loadURL('http://localhost:3000');
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
-    const indexHtml = path.join(__dirname, '..', 'out', 'index.html');
-    mainWindow.loadFile(indexHtml);
+    // Use custom protocol so nested routes (e.g., /captioner/) resolve inside the packaged app
+    mainWindow.loadURL('app://-/');
   }
 };
 
+let sidecar;
+
 app.whenReady().then(() => {
+  sidecar = new SidecarManager(app);
   registerLocalResourceProtocol();
+  registerAppProtocol();
   registerIpcHandlers();
+  registerCaptionerIpc(sidecar);
   createWindow();
 
   app.on('activate', () => {
@@ -190,6 +270,12 @@ app.whenReady().then(() => {
       createWindow();
     }
   });
+});
+
+app.on('before-quit', () => {
+  if (sidecar) {
+    sidecar.stop();
+  }
 });
 
 app.on('window-all-closed', () => {

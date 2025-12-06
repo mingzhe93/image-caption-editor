@@ -32,7 +32,7 @@ try {
   // Temporarily remove API routes for static export
   fs.renameSync(apiPath, backupPath);
 
-  // Build static Next.js output for Electron
+  // Build static Next.js output for Electron (output: 'export' in next.config)
   run('npx next build', { BUILD_TARGET: 'electron' });
 
   // Restore API directory for dev/web usage
