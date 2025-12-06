@@ -75,18 +75,18 @@ npm run dist
 After building, you'll find these files in the `dist/` folder:
 
 #### For Mac Users
--   **`Image Caption Editor-1.0.0-arm64.dmg`** - Mac installer (recommended)
+-   **`Image Caption Editor-2.0.0-arm64.dmg`** - Mac installer (recommended)
     -   Double-click to install
     -   Installs to Applications folder
--   **`Image Caption Editor-1.0.0-arm64-mac.zip`** - Portable Mac app
+-   **`Image Caption Editor-2.0.0-arm64-mac.zip`** - Portable Mac app
     -   Extract and run directly
     -   No installation needed
 
 #### For Windows Users
--   **`Image Caption Editor Setup 1.0.0.exe`** - Windows installer (recommended)
+-   **`Image Caption Editor Setup 2.0.0.exe`** - Windows installer (recommended)
     -   Double-click to install
     -   Creates Start Menu shortcuts
--   **`Image Caption Editor 1.0.0.exe`** - Portable executable
+-   **`Image Caption Editor 2.0.0.exe`** - Portable executable
     -   Run directly without installation
     -   Useful for USB drives or restricted environments
 
