@@ -12,11 +12,8 @@ A desktop application to view and edit image captions. This is a hobby project b
     -   **Next**: `Ctrl+Right` or `Cmd+Right`
     -   **Previous**: `Ctrl+Left` or `Cmd+Left`
 -   **Standalone Desktop App**: Runs as a native desktop application without requiring terminal commands.
--   **Optional Local Captioner (desktop only)**: Download-and-run a local llama.cpp sidecar, choose CPU/GPU backend, download models, and send a test caption request (with image upload support for the test).
-
-## TODO (small fixes)
-- Replace the mojibake-looking glyphs/icons (e.g., back link, Browse button, test button) in `src/app/page.js`, `src/app/captioner/page.js`, and `src/app/captioner/advanced/page.js` with ASCII-friendly text or consistent icon components so they render correctly everywhere.
-- Normalize the dash/ellipsis characters in the UI copy (e.g., “Testing…”, “8k–16k”) to ASCII equivalents to avoid encoding issues on some systems.
+-   **Optional Local Captioner (desktop only)**: Download-and-run a local llama.cpp sidecar, choose CPU/GPU backend, download models, send a test caption request (with image upload support), and caption the currently open image directly from the editor.
+-   **Session Restore**: Remembers your last folder and image index so you can resume where you left off.
 
 ## Tech Stack
 
@@ -58,7 +55,7 @@ This will start both the Next.js development server and launch the Electron wind
 ```bash
 npm run dist:win
 ```
-This uses Next.js `output: export` (configured in `next.config.js`) during `next build`, then packages the app from the generated `out/` folder—no separate `next export` step is needed.
+This uses Next.js `output: export` (configured in `next.config.js`) during `next build`, then packages the app from the generated `out/` folder - no separate `next export` step is needed.
 
 #### Build for Both Mac and Windows (from Mac)
 ```bash
@@ -118,13 +115,16 @@ Then open [http://localhost:3000](http://localhost:3000) in your browser.
 5.  Changes are saved automatically on navigation or manually via the Save button
 
 ### Auto-captioner (preview, desktop only)
-- Open the “Auto Captioning Sidecar” page in the desktop app.
-- Choose a backend (CPU or GPU; downloads are cached and reused even after shutdown).
-- Download a model preset or provide your own model/mmproj URLs.
-- Start the server and run a test caption (supports attaching an image; optional external base URL/API key/system prompt in Advanced settings).
-- Logs and progress are shown to help debug backend/model downloads and server startup.
+-   Open the "Auto Captioning Sidecar" page in the desktop app.
+-   Choose a backend (CPU or GPU; downloads are cached and reused even after shutdown).
+-   Download a model preset or provide your own model/mmproj URLs.
+-   Start the server and run a test caption (supports attaching an image; optional external base URL/API key/system prompt in Advanced settings).
+-   Logs and progress are shown to help debug backend/model downloads and server startup.
 
 Future plan: integrate the sidecar to iteratively caption images in the selected folder.
+
+## Roadmap
+- Whole-folder captioning job (bulk run through the local captioner sidecar).
 
 ## Project Structure
 -   `electron/` - Electron main process and IPC handlers

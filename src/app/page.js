@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { defaultSystemPrompt } from './captioner/defaultPrompt';
 
 function DirectoryPicker({ isOpen, onClose, onSelect }) {
   const [currentPath, setCurrentPath] = useState('');
@@ -82,7 +83,21 @@ function DirectoryPicker({ isOpen, onClose, onSelect }) {
                   className="p-2 hover:bg-gray-700 cursor-pointer flex items-center gap-2"
                   onClick={() => loadDirs(`${currentPath === '/' ? '' : currentPath}/${dir}`)}
                 >
-                  <span className="text-yellow-500">📁</span> {dir}
+                  <svg
+                    aria-hidden="true"
+                    className="w-4 h-4 text-yellow-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.8}
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
+                    />
+                  </svg>
+                  {dir}
                 </li>
               ))}
             </ul>
@@ -108,6 +123,7 @@ function DirectoryPicker({ isOpen, onClose, onSelect }) {
 }
 
 export default function Home() {
+  const SESSION_KEY = 'ice:lastSession';
   const [directory, setDirectory] = useState('');
   const [files, setFiles] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
@@ -116,6 +132,16 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [llmStatus, setLlmStatus] = useState({ available: false, baseURL: '' });
+  const [autoCaptioning, setAutoCaptioning] = useState(false);
+  const [advancedConfig, setAdvancedConfig] = useState({
+    baseUrl: '',
+    apiKey: '',
+    modelName: '',
+    systemPrompt: defaultSystemPrompt,
+    maxTokens: 8192,
+    cleanThinking: false,
+  });
   
   // Track if caption has been modified to avoid unnecessary saves (optional, but good practice)
   // For this requirement "Auto save when there is a change", we can just save on nav.
@@ -126,11 +152,72 @@ export default function Home() {
     return p.replace(/\\/g, '/');
   }, []);
 
+  // Load advanced captioner configuration (for system prompt / overrides)
+  const refreshAdvancedConfig = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem('captionerAdvanced');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setAdvancedConfig((prev) => ({
+          ...prev,
+          ...parsed,
+        }));
+        return parsed;
+      }
+    } catch (err) {
+      console.error('Failed to load advanced config', err);
+    }
+    return null;
+  }, []);
+
+  useEffect(() => {
+    refreshAdvancedConfig();
+  }, [refreshAdvancedConfig]);
+
   useEffect(() => {
     captionRef.current = currentCaption;
   }, [currentCaption]);
 
-  const loadFiles = useCallback(async (dir) => {
+  useEffect(() => {
+    if (typeof window === 'undefined' || !directory || files.length === 0 || currentIndex < 0) return;
+    const payload = {
+      directory,
+      index: Number.isInteger(currentIndex) ? currentIndex : -1,
+    };
+    window.localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
+  }, [directory, currentIndex, files.length]);
+
+  // Poll the local captioning sidecar (desktop only)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.electronAPI?.captioner) {
+      setLlmStatus({ available: false, baseURL: '' });
+      return;
+    }
+
+    let active = true;
+    const check = async () => {
+      try {
+        const res = await window.electronAPI.captioner.getStatus();
+        if (!active) return;
+        const available = !!res?.running && !!res?.baseURL;
+        setLlmStatus({ available, baseURL: available ? res.baseURL : '' });
+      } catch {
+        if (!active) return;
+        setLlmStatus({ available: false, baseURL: '' });
+      }
+    };
+
+    check();
+    const id = setInterval(check, 3000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, []);
+
+  const loadFiles = useCallback(async (dir, options = {}) => {
+    const { initialIndex = null } = options;
     if (!dir) return;
     setLoading(true);
     setStatus('Loading files...');
@@ -147,11 +234,22 @@ export default function Home() {
         setStatus(`Error: ${data.error}`);
       } else {
         setFiles(data.files);
+        const missingCaptions = data.files.filter((f) => !f.text).length;
         if (data.files.length > 0) {
-          setCurrentIndex(0);
+          const targetIndex = Number.isInteger(initialIndex)
+            ? Math.min(Math.max(initialIndex, 0), data.files.length - 1)
+            : 0;
+          setCurrentIndex(targetIndex);
           setStatus(`Loaded ${data.files.length} pairs.`);
+          if (missingCaptions > 0 && typeof window !== 'undefined') {
+            window.alert(
+              `${missingCaptions} of ${data.files.length} images do not have text captions. You may want to start the image captioning service to caption these images.`
+            );
+          }
         } else {
           setStatus('No image files found.');
+          setCurrentIndex(-1);
+          setCurrentCaption('');
         }
       }
     } catch (err) {
@@ -160,6 +258,22 @@ export default function Home() {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem(SESSION_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.directory) {
+        setDirectory(parsed.directory);
+        const idx = Number.isInteger(parsed.index) ? parsed.index : null;
+        loadFiles(parsed.directory, { initialIndex: idx });
+      }
+    } catch (err) {
+      console.error('Failed to restore last session', err);
+    }
+  }, [loadFiles]);
 
   const loadCaption = useCallback(async (index) => {
     if (index < 0 || index >= files.length) return;
@@ -249,6 +363,167 @@ export default function Home() {
     setCurrentIndex(nextIndex);
   };
 
+  const fetchImageDataUrl = async (imgPath) => {
+    const url =
+      typeof window !== 'undefined' && window.electronAPI
+        ? `local-resource://file?path=${encodeURIComponent(imgPath)}`
+        : `/api/image?path=${encodeURIComponent(imgPath)}`;
+
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error('Failed to load image');
+    }
+    const blob = await res.blob();
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = dataUrl;
+    await new Promise((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = reject;
+    });
+
+    const maxSize = 1024;
+    const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    // Use JPEG to reduce payload size and improve backend compatibility
+    const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    const b64 = (jpegDataUrl.split(',')[1] || '').trim();
+    if (!b64) {
+      throw new Error('Failed to encode image');
+    }
+    return {
+      b64,
+      mime: 'image/jpeg',
+      dims: { width: canvas.width, height: canvas.height },
+      approxBytes: Math.round((b64.length * 3) / 4),
+    };
+  };
+
+  const autoCaptionCurrentImage = async () => {
+    if (autoCaptioning) return;
+    if (!currentFile || !directory) {
+      setStatus('Load an image first.');
+      return;
+    }
+
+    // Re-read latest advanced settings in case user updated them in another page
+    const refreshed = refreshAdvancedConfig() || {};
+    const effectiveConfig = { ...advancedConfig, ...refreshed };
+
+    const effectiveBaseUrl = (effectiveConfig.baseUrl || '').trim() || llmStatus.baseURL;
+    if (!effectiveBaseUrl) {
+      setStatus('Start the captioning service first.');
+      return;
+    }
+
+    setAutoCaptioning(true);
+    setStatus('Captioning current image...');
+    try {
+      const imgPath = `${normalizePath(directory)}/${currentFile.image}`;
+      const { b64, mime, dims, approxBytes } = await fetchImageDataUrl(imgPath);
+
+      const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+      if (effectiveConfig.apiKey) {
+        headers.Authorization = `Bearer ${effectiveConfig.apiKey}`;
+      }
+
+      const modelsRes = await fetch(`${effectiveBaseUrl}/models`, { headers });
+      if (!modelsRes.ok) {
+        const errText = await modelsRes.text();
+        const message = `Models request failed (${modelsRes.status}): ${errText || modelsRes.statusText}`;
+        console.error(message);
+        throw new Error(message);
+      }
+      const modelsJson = await modelsRes.json();
+      const modelId =
+        effectiveConfig.modelName ||
+        modelsJson?.data?.[0]?.id ||
+        modelsJson?.[0]?.id ||
+        modelsJson?.model ||
+        'default';
+
+      const body = {
+        model: modelId,
+        messages: [
+          { role: 'system', content: effectiveConfig.systemPrompt || defaultSystemPrompt },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Describe this image in detail.' },
+              { type: 'image_url', image_url: { url: `data:${mime};base64,${b64}` } },
+            ],
+          },
+        ],
+        max_tokens: Number(effectiveConfig.maxTokens) || 8192,
+      };
+
+      const completionRes = await fetch(`${effectiveBaseUrl}/chat/completions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      const raw = await completionRes.text();
+      let completionJson = null;
+      try {
+        completionJson = raw ? JSON.parse(raw) : null;
+      } catch {
+        completionJson = null;
+      }
+
+      if (!completionRes.ok || completionJson?.error) {
+        const msg =
+          completionJson?.error?.message ||
+          completionJson?.error ||
+          completionRes.statusText ||
+          'Unknown error';
+        const details = raw && raw !== msg ? ` (${raw.slice(0, 300)})` : '';
+        console.error('Caption request failed', {
+          status: completionRes.status,
+          statusText: completionRes.statusText,
+          message: msg,
+          raw,
+          body,
+          image: { dims, approxBytes },
+        });
+        setStatus(`Caption failed: ${msg}${details}`);
+      } else {
+        const stripThinking = (text, shouldStrip) => {
+          if (!shouldStrip || !text) return text || '';
+          const cleaned = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+          return cleaned || text;
+        };
+
+        const content =
+          completionJson?.choices?.[0]?.message?.content ||
+          completionJson?.choices?.[0]?.text ||
+          '';
+        if (content) {
+          const cleaned = stripThinking(content, !!effectiveConfig.cleanThinking);
+          setCurrentCaption(cleaned);
+          setStatus('Caption generated. Review and save.');
+        } else {
+          setStatus('Caption response was empty.');
+        }
+      }
+    } catch (err) {
+      setStatus(err?.message || 'Caption failed.');
+    } finally {
+      setAutoCaptioning(false);
+    }
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -284,7 +559,23 @@ export default function Home() {
             onClick={() => setIsPickerOpen(true)}
             className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded border border-gray-600"
           >
-            📂 Browse
+            <span className="flex items-center gap-2">
+              <svg
+                aria-hidden="true"
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.8}
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
+                />
+              </svg>
+              <span>Browse</span>
+            </span>
           </button>
           <input
             type="text"
@@ -302,7 +593,28 @@ export default function Home() {
             {loading ? 'Loading...' : 'Load'}
           </button>
         </div>
-        <div className="flex-[1_1_50%] flex justify-end">
+        <div className="flex-[1_1_50%] flex items-center justify-end gap-3">
+          <div
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-semibold ${
+              llmStatus.available
+                ? 'bg-emerald-700/30 border-emerald-500/60 text-emerald-200 animate-pulse'
+                : 'bg-gray-800 border-gray-700 text-gray-300'
+            }`}
+            title={
+              llmStatus.available
+                ? 'Local captioning sidecar running'
+                : 'Start the captioning service to enable LLM captioning'
+            }
+          >
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${
+                llmStatus.available
+                  ? 'bg-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.25)]'
+                  : 'bg-gray-500'
+              }`}
+            />
+            <span>{llmStatus.available ? 'LLM captioning available' : 'LLM service unavailable'}</span>
+          </div>
           <a
             href="/captioner/"
             className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold shadow-lg shadow-indigo-900/30 transition-colors"
@@ -403,17 +715,44 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* Save Button */}
-              <button
-                onClick={() => saveCaption(currentIndex, currentCaption)}
-                className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold shadow-lg shadow-blue-900/20 transition-all active:scale-95"
-                title="Save (Ctrl+S)"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                </svg>
-                <span>Save</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={autoCaptionCurrentImage}
+                  disabled={autoCaptioning || !llmStatus.available || !currentFile}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg font-semibold shadow-lg shadow-emerald-900/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Send this image to the captioning service"
+                >
+                  {autoCaptioning ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"></path>
+                      </svg>
+                      <span>Captioning...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h6" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>Caption with LLM</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Save Button */}
+                <button
+                  onClick={() => saveCaption(currentIndex, currentCaption)}
+                  className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold shadow-lg shadow-blue-900/20 transition-all active:scale-95"
+                  title="Save (Ctrl+S)"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                  <span>Save</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

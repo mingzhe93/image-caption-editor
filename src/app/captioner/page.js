@@ -2,9 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-
-const defaultSystemPrompt =
-  'Use this framework to describe images: Subject + Action + Style + Context\nSubject: The main focus (person, object, character)\nAction: What the subject is doing or their pose\nStyle: Artistic approach, medium, or aesthetic\nContext: Setting, lighting, time, mood, or atmospheric conditions';
+import { defaultSystemPrompt } from './defaultPrompt';
 
 const modelPresets = [
   {
@@ -20,7 +18,7 @@ const modelPresets = [
   {
     key: 'qwen3-vl-4b',
     name: 'Qwen3 VL 4B',
-    memory: 'GPU 4–6GB VRAM recommended',
+    memory: 'GPU 4-6GB VRAM recommended',
     note: 'Smaller vision-language model for mid-tier GPUs; downloads directly from Hugging Face.',
     modelPath:
       'https://huggingface.co/mradermacher/Qwen3-VL-4B-Instruct-abliterated-GGUF/resolve/main/Qwen3-VL-4B-Instruct-abliterated.Q4_K_M.gguf?download=true',
@@ -30,7 +28,7 @@ const modelPresets = [
   {
     key: 'qwen3-vl-8b',
     name: 'Qwen3 VL 8B',
-    memory: 'GPU 8–12GB VRAM recommended',
+    memory: 'GPU 8-12GB VRAM recommended',
     note: 'Vision-language 8B; prefer GPU; downloads directly from Hugging Face.',
     modelPath:
       'https://huggingface.co/prithivMLmods/Qwen3-VL-8B-Abliterated-Caption-it-GGUF/resolve/main/Qwen3-VL-8B-Abliterated-Caption-it.i1-IQ4_XS.gguf?download=true',
@@ -44,6 +42,12 @@ const heuristicNotes = [
   'macOS: Metal on arm64, else CPU.',
   'Other platforms: CPU.',
 ];
+
+const stripThinking = (text, shouldStrip) => {
+  if (!shouldStrip || !text) return text || '';
+  const cleaned = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  return cleaned || text;
+};
 
 const formatStatus = (status) => {
   if (!status) return 'Idle';
@@ -340,7 +344,7 @@ export default function CaptionerPage() {
           completionJson?.choices?.[0]?.message?.content ||
           completionJson?.choices?.[0]?.text ||
           JSON.stringify(completionJson);
-        setTestResult(content);
+        setTestResult(stripThinking(content, !!advancedConfig.cleanThinking));
       }
     } catch (err) {
       setTestResult(err?.message || 'Test failed');
@@ -358,7 +362,16 @@ export default function CaptionerPage() {
               href="../"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-700 bg-gray-900 hover:bg-gray-700 transition-colors max-w-[220px]"
             >
-              <span className="text-lg">←</span>
+              <svg
+                aria-hidden="true"
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+              </svg>
               <span className="font-semibold whitespace-nowrap">Back to editor</span>
             </Link>
             <div>
@@ -427,7 +440,16 @@ export default function CaptionerPage() {
                         onClick={closeBackendInfo}
                         className="h-6 w-6 rounded bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-200 border border-gray-600"
                       >
-                        ×
+                        <svg
+                          aria-hidden="true"
+                          className="w-3 h-3"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
+                        </svg>
                       </button>
                     </div>
                     <div className="space-y-1 text-gray-300">
@@ -633,7 +655,7 @@ export default function CaptionerPage() {
                 disabled={testing || !status?.running}
                 className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 font-semibold shadow-lg shadow-blue-900/30 disabled:opacity-60"
               >
-                {testing ? 'Testing…' : 'Send test request'}
+                {testing ? 'Testing...' : 'Send test request'}
               </button>
               <div className="text-xs text-gray-500 self-center">
                 Requires server running. Uses /models then /chat/completions.

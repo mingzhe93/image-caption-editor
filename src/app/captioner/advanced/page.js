@@ -2,9 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-
-const defaultSystemPrompt =
-  'Use this framework to describe images: Subject + Action + Style + Context\nSubject: The main focus (person, object, character)\nAction: What the subject is doing or their pose\nStyle: Artistic approach, medium, or aesthetic\nContext: Setting, lighting, time, mood, or atmospheric conditions';
+import { defaultSystemPrompt } from '../defaultPrompt';
 
 export default function AdvancedSettings() {
   const [baseUrl, setBaseUrl] = useState('');
@@ -79,7 +77,16 @@ export default function AdvancedSettings() {
             href="/captioner/"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-700 bg-gray-900 hover:bg-gray-700 transition-colors"
           >
-            <span className="text-lg">←</span>
+            <svg
+              aria-hidden="true"
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+            </svg>
             <span className="font-semibold">Back to captioner</span>
           </Link>
           <div>
@@ -169,7 +176,7 @@ export default function AdvancedSettings() {
               className="w-full mt-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
             />
             <div className="text-xs text-gray-500 mt-1">
-              Defaults to 8192; thinking models often need 8k–16k to avoid truncation (higher VRAM/RAM).
+              Defaults to 8192; thinking models often need 8k-16k to avoid truncation (higher VRAM/RAM).
             </div>
           </div>
         </div>
