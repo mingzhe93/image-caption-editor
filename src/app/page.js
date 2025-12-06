@@ -300,6 +300,14 @@ export default function Home() {
     }
   }, [currentIndex, loadCaption]);
 
+  useEffect(() => {
+    if (currentIndex < 0 || files.length === 0) {
+      setJumpInput('');
+      return;
+    }
+    setJumpInput(String(currentIndex + 1));
+  }, [currentIndex, files.length]);
+
   const saveCaption = async (index, caption) => {
     if (index < 0 || !files[index]) return;
     const file = files[index];

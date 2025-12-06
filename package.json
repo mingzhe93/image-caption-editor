@@ -41,6 +41,7 @@
     "files": [
       "out/**/*",
       "electron/**/*",
+      "public/image_caption_edit.ico",
       "package.json",
       "!node_modules/@img/**"
     ],

@@ -234,10 +234,22 @@ const registerAppProtocol = () => {
   });
 };
 
+const getIconPath = () => {
+  const iconName = 'image_caption_edit.ico';
+  if (app.isPackaged) {
+    const direct = path.join(process.resourcesPath, iconName);
+    if (fs.existsSync(direct)) return direct;
+    const nested = path.join(process.resourcesPath, 'public', iconName);
+    if (fs.existsSync(nested)) return nested;
+  }
+  return path.join(__dirname, '..', 'public', iconName);
+};
+
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    icon: getIconPath(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
