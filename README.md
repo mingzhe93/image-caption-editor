@@ -14,6 +14,7 @@ A desktop application to view and edit image captions. This is a hobby project b
 -   **Standalone Desktop App**: Runs as a native desktop application without requiring terminal commands.
 -   **Optional Local Captioner (desktop only)**: Download-and-run a local llama.cpp sidecar, choose CPU/GPU backend, download models, send a test caption request (with image upload support), and caption the currently open image directly from the editor.
 -   **Session Restore**: Remembers your last folder and image index so you can resume where you left off.
+-   **Offline-Friendly (after setup)**: First run needs internet to download the llama.cpp backend and model assets; they are cached so later use works offline.
 
 ## Tech Stack
 
